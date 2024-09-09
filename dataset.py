@@ -64,6 +64,15 @@ class ImageDataset(torch.utils.data.Dataset):
                 hc, vc = int(x * cur_split), int(y * cur_split)
                 anchor_in_cell = label_matrix[scale_index][anchor_on_scale, vc, hc, 0]
 
+                # first case: when there is no anchor in the cell, but scale was already used earlier,
+                # it means that we have already encountered "better" anchor of this scale for current bbox
+
+                # second case: when there is an anchor in the cell but scale is not used -->
+                # there are 2 or more bboxes for the same cell, and they are very similar in shape,
+                # so they have the same best anchor
+
+                # considering second case: one anchor can detect one object per cell
+
                 if not anchor_in_cell and not scale_used[scale_index]:
                     label_matrix[scale_index][anchor_on_scale, vc, hc, 0] = 1
                     x_cell, y_cell = x * cur_split - hc, y * cur_split - vc
@@ -73,7 +82,7 @@ class ImageDataset(torch.utils.data.Dataset):
                                                                                             width_cell, height_cell])
                     scale_used[scale_index] = True
 
-                # here it mean we already have best anchor for this scale, but it's not the best for the current obj,
+                # here it means we already have best anchor for this scale, but it's not the best for the current obj,
                 # so we ignore it
 
                 elif not anchor_in_cell and anchors_iou[anchor_index] > self.ignore_iou_thresh:
