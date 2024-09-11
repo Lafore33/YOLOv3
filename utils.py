@@ -138,3 +138,35 @@ def show_losses(train_loss_hist, test_loss_hist=None):
 
     plt.show()
 
+
+def cells_to_boxes(boxes, anchors, split, is_pred=True):
+    batch_size = boxes.shape[0]
+    num_anchors = len(anchors)
+
+    if is_pred:
+        anchors = anchors.reshape(1, len(anchors), 1, 2)
+        boxes[..., 2:4] = torch.sigmoid(boxes[..., 2:4])
+        boxes[..., 4:6] = torch.exp(boxes[..., 4:6]) * anchors
+        boxes[..., 0:1] = torch.sigmoid(boxes[..., 0:1])
+
+    cell_indices = (
+        torch.arange(split)
+        .repeat(boxes.shape[0], 3, split, 1)
+        .unsqueeze(-1)
+        .to(boxes.device)
+    )
+
+    boxes[..., 2:3] = 1 / split * (boxes[..., 2:3] + cell_indices)
+    boxes[..., 3:4] = 1 / split * (boxes[..., 3:4] + cell_indices.permute(0, 1, 3, 2, 4))
+    boxes[..., 4:6] = 1 / split * (boxes[..., 4:6])
+    boxes = boxes.reshape(batch_size, num_anchors * split * split, 6)
+    return boxes.tolist()
+
+
+
+
+
+
+
+
+
