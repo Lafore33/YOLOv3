@@ -6,8 +6,10 @@ from torch.utils.data import DataLoader
 from utils import cells_to_boxes, non_max_suppression
 from model import YOLOv3
 from loss import Loss
-from train import train_fn
+from train import train_fn, get_bboxes
 from dataset import ImageDataset
+from mean_average_precision import mean_average_precision
+
 
 def main():
     anchors = [
@@ -39,7 +41,7 @@ def main():
 
     train_dataset = ImageDataset(train_images_path, train_labels_path, anchors=anchors, transform=transform_aug)
     val_dataset = ImageDataset(val_images_path, val_labels_path, anchors=anchors, transform=transform_aug)
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=False)
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=False, drop_last=False)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, drop_last=False)
 
     iou_threshold = 0.4
@@ -52,6 +54,11 @@ def main():
     train_loss_hist = []
     for epoch in range(NUM_EPOCHS):
         mean_loss = train_fn(model, train_loader, loss_function, scaled_anchors, optimizer, DEVICE)
+        all_pred_boxes, all_true_boxes = get_bboxes(model, train_loader, scaled_anchors,
+                                                    iou_threshold, class_threshold, DEVICE)
+
+        mAp = mean_average_precision(all_pred_boxes, all_true_boxes, iou_threshold)
+        print(f'Epoch {epoch}; Mean average precision: {round(mAp, 2)}')
         #     train_loss_hist.append(mean_loss)
         #     show_losses(train_loss_hist)
 

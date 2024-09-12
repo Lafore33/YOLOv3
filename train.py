@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import torch
-from utils import cells_to_boxes, non_max_suppression
+from utils import cells_to_boxes, non_max_suppression, plot_image
 
 
 def train_fn(model, loader, loss_fn, anchors, optimizer=None, device='cpu'):
@@ -23,9 +23,9 @@ def train_fn(model, loader, loss_fn, anchors, optimizer=None, device='cpu'):
 
         raw_pred = model(x)
         loss = (
-            loss_fn(raw_pred[0], y0, anchors[0])
-            + loss_fn(raw_pred[1], y1, anchors[1])
-            + loss_fn(raw_pred[2], y2, anchors[2])
+                loss_fn(raw_pred[0], y0, anchors[0])
+                + loss_fn(raw_pred[1], y1, anchors[1])
+                + loss_fn(raw_pred[2], y2, anchors[2])
         )
 
         if optimizer is not None:
@@ -39,7 +39,7 @@ def train_fn(model, loader, loss_fn, anchors, optimizer=None, device='cpu'):
     return total_loss / len(mean_loss)
 
 
-def get_bboxes(model, loader, anchors, split, iou_threshold, class_threshold, device='cpu'):
+def get_bboxes(model, loader, anchors, iou_threshold, class_threshold, device='cpu'):
     all_true_boxes = []
     all_pred_boxes = []
     train_idx = 0
@@ -48,30 +48,46 @@ def get_bboxes(model, loader, anchors, split, iou_threshold, class_threshold, de
 
     for batch_idx, (x, y) in enumerate(loader):
         batch_size = x.size()[0]
-        x, y = x.to(device), y.to(device)
+        x = x.to(device)
+
+        for idx in range(len(y)):
+            y[idx] = y[idx].to(device)
 
         with torch.no_grad():
             raw_pred = model(x)
 
-            pred = cells_to_boxes(raw_pred, anchors, split)
-            y = cells_to_boxes(y, anchors, split, is_pred=False)
-            for idx in range(batch_size):
-                nms_boxes = non_max_suppression(pred[idx], iou_threshold, class_threshold)
-                temp = []
+        predictions = [[] for _ in range(batch_size)]
+        gt_boxes = [[] for _ in range(batch_size)]
 
-                for nms_box in nms_boxes:
-                    # boxes for a given batch and image with index = idx
-                    all_pred_boxes.append([train_idx] + nms_box)
+        num_scales = len(y)
+        for i in range(num_scales):
+            cur_split = raw_pred[i].shape[2]
+            cur_anchors = anchors[i]
 
-                # plot_image(x[idx].permute(1,2,0).to("cpu"), nms_boxes)
+            boxes = cells_to_boxes(raw_pred[i], cur_anchors, cur_split)
+            for idx, box in enumerate(boxes):
+                predictions[idx] += box
 
-                for box in y[idx]:
-                    if box[0] == 1:
-                        all_true_boxes.append([train_idx] + box)
-                        temp.append(box)
+        # for ground truth object we do need to process each scale, 'cause each scale will give the same resul
+        gt_boxes = cells_to_boxes(y[0], anchors[0], y[0].shape[2], False)
 
-                # plot_image(x[idx].permute(1,2,0).to("cpu"), temp)
+        for idx in range(batch_size):
+            temp = []
 
-                train_idx += 1
+            nms_boxes = non_max_suppression(predictions[idx], iou_threshold=iou_threshold, threshold=class_threshold)
+
+            for box in nms_boxes:
+                all_pred_boxes.append([train_idx] + box)
+            # plot_image(x[idx].permute(1, 2, 0).to("cpu"), nms_boxes)
+
+            for box in gt_boxes[idx]:
+                if box[0] == 1:
+                    all_true_boxes.append([train_idx] + box)
+                    temp.append(box)
+
+            # plot_image(x[idx].permute(1, 2, 0).to("cpu"), temp)
+            # print(temp)
+
+            train_idx += 1
 
     return all_pred_boxes, all_true_boxes

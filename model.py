@@ -69,7 +69,7 @@ class ScaleBlock(nn.Module):
         super().__init__()
         self.conv_b = nn.Sequential(
             ConvBlock(in_channels, in_channels * 2, kernel_size=3, stride=1, padding=1),
-            nn.Conv2d(in_channels * 2, (num_classes + 5) * 3, kernel_size=1, stride=1)
+            nn.Conv2d(in_channels * 2, 5 * 3, kernel_size=1, stride=1)
         )
         self.num_classes = num_classes
 
@@ -79,7 +79,7 @@ class ScaleBlock(nn.Module):
         # will it be better to use reshape without permute?
         # x.reshape(x.shape[0], 3, x.shape[2], x.shape[3], 6)?
         # they should have different effect, but which do we need?
-        x = x.reshape(x.shape[0], 3, self.num_classes + 5, x.shape[2], x.shape[3]).permute(0, 1, 3, 4, 2)
+        x = x.reshape(x.shape[0], 3, 5, x.shape[2], x.shape[3]).permute(0, 1, 3, 4, 2)
 
         return x
 
@@ -139,12 +139,3 @@ class YOLOv3(nn.Module):
                     in_channels *= 3
 
         return layers
-
-
-IMAGE_SIZE = 416
-model = YOLOv3()
-arg = torch.randn((2, 3, IMAGE_SIZE, IMAGE_SIZE))
-assert model(arg)[0].shape == (2, 3, IMAGE_SIZE // 32, IMAGE_SIZE // 32, 6)
-assert model(arg)[1].shape == (2, 3, IMAGE_SIZE // 16, IMAGE_SIZE // 16, 6)
-assert model(arg)[2].shape == (2, 3, IMAGE_SIZE // 8, IMAGE_SIZE // 8, 6)
-print("Success!")

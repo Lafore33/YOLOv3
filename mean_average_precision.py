@@ -40,7 +40,7 @@ def mean_average_precision(
         amount_bboxes[key] = torch.zeros(val)
 
     # sort by box probabilities which is index 1
-    detections.sort(key=lambda x: x[2], reverse=True)
+    detections.sort(key=lambda x: x[1], reverse=True)
     TP = torch.zeros((len(detections)))
     FP = torch.zeros((len(detections)))
     total_true_bboxes = len(ground_truths)
@@ -60,8 +60,8 @@ def mean_average_precision(
         for idx, gt in enumerate(ground_truth_img):
 
             iou = intersection_over_union(
-                torch.tensor(detection[3:]),
-                torch.tensor(gt[3:]),
+                torch.tensor(detection[2:]),
+                torch.tensor(gt[2:]),
             )
 
             if iou > best_iou:

@@ -4,6 +4,8 @@ import os
 from torch.utils.data import DataLoader
 from PIL import Image
 from utils import iou_wh
+import torchvision.transforms as transforms
+from utils import cells_to_boxes, plot_image
 
 
 class ImageDataset(torch.utils.data.Dataset):
@@ -30,7 +32,7 @@ class ImageDataset(torch.utils.data.Dataset):
         self.ignore_iou_thresh = 0.5
 
     def __len__(self):
-        return self.size
+        return 1
 
     def __getitem__(self, idx):
         prefix = f"img{idx}"
@@ -44,7 +46,7 @@ class ImageDataset(torch.utils.data.Dataset):
 
         label_path = os.path.join(self.label_root, label_file)
 
-        label_matrix = [torch.zeros((self.num_anchors // 3, split, split, 6)) for split in self.cells_split]
+        label_matrix = [torch.zeros((self.num_anchors // 3, split, split, 5)) for split in self.cells_split]
 
         if os.path.getsize(label_path) != 0:
             label = torch.tensor(np.loadtxt(fname=label_path, delimiter=" ", ndmin=2))
@@ -77,8 +79,7 @@ class ImageDataset(torch.utils.data.Dataset):
                     label_matrix[scale_index][anchor_on_scale, vc, hc, 0] = 1
                     x_cell, y_cell = x * cur_split - hc, y * cur_split - vc
                     width_cell, height_cell = width * cur_split, height * cur_split
-                    label_matrix[scale_index][anchor_on_scale, vc, hc, 1] = 1
-                    label_matrix[scale_index][anchor_on_scale, vc, hc, 2:6] = torch.tensor([x_cell, y_cell,
+                    label_matrix[scale_index][anchor_on_scale, vc, hc, 1:5] = torch.tensor([x_cell, y_cell,
                                                                                             width_cell, height_cell])
                     scale_used[scale_index] = True
 
@@ -87,4 +88,39 @@ class ImageDataset(torch.utils.data.Dataset):
 
                 elif not anchor_in_cell and anchors_iou[anchor_index] > self.ignore_iou_thresh:
                     label_matrix[scale_index][anchor_on_scale, vc, hc, 0] = -1
+
         return img, label_matrix
+
+
+def test():
+    anchors = [
+        [(0.28, 0.22), (0.38, 0.48), (0.9, 0.78)],
+        [(0.07, 0.15), (0.15, 0.11), (0.14, 0.29)],
+        [(0.02, 0.03), (0.04, 0.07), (0.08, 0.06)],
+    ]
+
+    train_images_path = "detection/images/train"
+    train_labels_path = "detection/labels/train"
+
+    transform_aug = transforms.Compose([
+        transforms.Resize((416, 416)),
+        transforms.ToTensor()
+    ])
+
+    train_dataset = ImageDataset(train_images_path, train_labels_path, anchors=anchors, transform=transform_aug)
+    S = [13, 26, 52]
+
+    scaled_anchors = torch.tensor(anchors) / (
+        1 / torch.tensor(S).unsqueeze(1).unsqueeze(1).repeat(1, 3, 2)
+    )
+
+    loader = DataLoader(dataset=train_dataset, batch_size=5, shuffle=False)
+    d = 0
+
+    for x, y in loader:
+        boxes = cells_to_boxes(y[0], scaled_anchors[0], y[0].shape[2], False)[0]
+        plot_image(x[d].permute(1, 2, 0).to("cpu"), boxes)
+
+
+if __name__ == "__main__":
+    test()

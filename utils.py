@@ -67,8 +67,8 @@ def non_max_suppression(bboxes, iou_threshold, threshold):
         list: bboxes after performing NMS given a specific IoU threshold
     """
 
-    bboxes = [box for box in bboxes if box[1] > threshold]
-    bboxes = sorted(bboxes, key=lambda x: x[1], reverse=True)
+    bboxes = [box for box in bboxes if box[0] > threshold]
+    bboxes = sorted(bboxes, key=lambda x: x[0], reverse=True)
     bboxes_after_nms = []
 
     while bboxes:
@@ -78,8 +78,8 @@ def non_max_suppression(bboxes, iou_threshold, threshold):
             box
             for box in bboxes
             if intersection_over_union(
-                torch.tensor(chosen_box[2:]),
-                torch.tensor(box[2:])) < iou_threshold
+                torch.tensor(chosen_box[1:]),
+                torch.tensor(box[1:])) < iou_threshold
         ]
 
         bboxes_after_nms.append(chosen_box)
@@ -99,7 +99,7 @@ def plot_image(image, boxes):
 
     # Create a Rectangle patch
     for box in boxes:
-        box = box[2:]
+        box = box[1:]
         assert len(box) == 4, "Got more values than in x, y, w, h, in a box!"
         upper_left_x = box[0] - box[2] / 2
         upper_left_y = box[1] - box[3] / 2
@@ -144,10 +144,10 @@ def cells_to_boxes(boxes, anchors, split, is_pred=True):
     num_anchors = len(anchors)
 
     if is_pred:
-        anchors = anchors.reshape(1, len(anchors), 1, 2)
-        boxes[..., 2:4] = torch.sigmoid(boxes[..., 2:4])
-        boxes[..., 4:6] = torch.exp(boxes[..., 4:6]) * anchors
-        boxes[..., 0:1] = torch.sigmoid(boxes[..., 0:1])
+        anchors = anchors.reshape(1, len(anchors), 1, 1, 2)
+        boxes[..., 1:3] = torch.sigmoid(boxes[..., 1:3])
+        boxes[..., 3:5] = torch.exp(boxes[..., 3:5]) * anchors
+        # boxes[..., 0:1] = torch.sigmoid(boxes[..., 0:1])
 
     cell_indices = (
         torch.arange(split)
@@ -156,10 +156,10 @@ def cells_to_boxes(boxes, anchors, split, is_pred=True):
         .to(boxes.device)
     )
 
-    boxes[..., 2:3] = 1 / split * (boxes[..., 2:3] + cell_indices)
-    boxes[..., 3:4] = 1 / split * (boxes[..., 3:4] + cell_indices.permute(0, 1, 3, 2, 4))
-    boxes[..., 4:6] = 1 / split * (boxes[..., 4:6])
-    boxes = boxes.reshape(batch_size, num_anchors * split * split, 6)
+    boxes[..., 1:2] = 1 / split * (boxes[..., 1:2] + cell_indices)
+    boxes[..., 2:3] = 1 / split * (boxes[..., 2:3] + cell_indices.permute(0, 1, 3, 2, 4))
+    boxes[..., 3:5] = 1 / split * (boxes[..., 3:5])
+    boxes = boxes.reshape(batch_size, num_anchors * split * split, 5)
     return boxes.tolist()
 
 
