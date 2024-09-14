@@ -57,7 +57,6 @@ def get_bboxes(model, loader, anchors, iou_threshold, class_threshold, device='c
             raw_pred = model(x)
 
         predictions = [[] for _ in range(batch_size)]
-        gt_boxes = [[] for _ in range(batch_size)]
 
         num_scales = len(y)
         for i in range(num_scales):
@@ -73,12 +72,11 @@ def get_bboxes(model, loader, anchors, iou_threshold, class_threshold, device='c
 
         for idx in range(batch_size):
             temp = []
-
             nms_boxes = non_max_suppression(predictions[idx], iou_threshold=iou_threshold, threshold=class_threshold)
 
             for box in nms_boxes:
                 all_pred_boxes.append([train_idx] + box)
-            # plot_image(x[idx].permute(1, 2, 0).to("cpu"), nms_boxes)
+            plot_image(x[idx].permute(1, 2, 0).to("cpu"), nms_boxes)
 
             for box in gt_boxes[idx]:
                 if box[0] == 1:
@@ -86,7 +84,6 @@ def get_bboxes(model, loader, anchors, iou_threshold, class_threshold, device='c
                     temp.append(box)
 
             # plot_image(x[idx].permute(1, 2, 0).to("cpu"), temp)
-            # print(temp)
 
             train_idx += 1
 

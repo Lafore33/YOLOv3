@@ -66,8 +66,8 @@ def non_max_suppression(bboxes, iou_threshold, threshold):
     Returns:
         list: bboxes after performing NMS given a specific IoU threshold
     """
-
     bboxes = [box for box in bboxes if box[0] > threshold]
+
     bboxes = sorted(bboxes, key=lambda x: x[0], reverse=True)
     bboxes_after_nms = []
 
@@ -147,7 +147,7 @@ def cells_to_boxes(boxes, anchors, split, is_pred=True):
         anchors = anchors.reshape(1, len(anchors), 1, 1, 2)
         boxes[..., 1:3] = torch.sigmoid(boxes[..., 1:3])
         boxes[..., 3:5] = torch.exp(boxes[..., 3:5]) * anchors
-        # boxes[..., 0:1] = torch.sigmoid(boxes[..., 0:1])
+        boxes[..., 0:1] = torch.sigmoid(boxes[..., 0:1])
 
     cell_indices = (
         torch.arange(split)

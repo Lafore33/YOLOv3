@@ -23,7 +23,7 @@ class Loss(nn.Module):
         exist_obj = target[..., 0] == 1
         no_obj = target[..., 0] == 0
 
-        no_obj_loss = self.mse(
+        no_obj_loss = self.cross_entropy(
             predictions[..., 0:1][no_obj], target[..., 0:1][no_obj]
         )
 
@@ -32,8 +32,6 @@ class Loss(nn.Module):
             epsilon + target[..., 3:5] / anchors
         )
         coord_loss = self.mse(predictions[..., 1:5][exist_obj], target[..., 1:5][exist_obj])
-
-        # class_loss = self.cross_entropy(predictions[..., 1:2], target[..., 1:2])
 
         anchors = anchors.reshape(1, 3, 1, 1, 2)
         box_preds = torch.cat([self.sigmoid(predictions[..., 1:3]), torch.exp(predictions[..., 3:5]) * anchors], dim=-1)
