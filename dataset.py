@@ -45,7 +45,8 @@ class ImageDataset(torch.utils.data.Dataset):
             img = self.transform(img)
 
         label_path = os.path.join(self.label_root, label_file)
-
+        # [prob, x, y, w, h] --> no class, prediction, because there is only one class,
+        # so if there is an object it has to be a human
         label_matrix = [torch.zeros((self.num_anchors // 3, split, split, 5)) for split in self.cells_split]
 
         if os.path.getsize(label_path) != 0:
